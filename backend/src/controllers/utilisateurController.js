@@ -292,7 +292,7 @@ const UtilisateurController = {
   // ──────────────────────────────────────────────────────────
   async changerMotDePasse(req, res) {
     try {
-      const userId                        = req.user.id_utilisateur;
+      const userId = req.user.id_utilisateur;
       const { ancienPassword, newPassword } = req.body;
 
       if (!ancienPassword || !newPassword) {

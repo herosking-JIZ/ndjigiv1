@@ -429,7 +429,7 @@ model utilisation_promo {
 // ─────────────────────────────────────────────────────────────
 model vehicule {
   id_vehicule          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_proprietaire      String?               @db.Uuid
+  id_proprietaire      String               @db.Uuid
   immatriculation      String                @unique @db.VarChar(20)
   marque               String                @db.VarChar(60)
   modele               String                @db.VarChar(60)

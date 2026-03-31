@@ -439,6 +439,9 @@ const AuthController = {
       });
 
       if (!user || user.statut_compte !== 'actif') {
+        console.log("-------------------------!USER ou USER ACTIF -----------------------");
+        console.log(user);
+
         return successResponse();
       }
 
@@ -453,7 +456,7 @@ const AuthController = {
 
       // Envoyer l'email
       await sendResetPasswordEmail(email, user.prenom, reset_token);
-
+      console.log("mail envoye");
       return successResponse();
 
     } catch (error) {
