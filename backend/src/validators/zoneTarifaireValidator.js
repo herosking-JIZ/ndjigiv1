@@ -27,7 +27,7 @@ const zoneIdParamSchema = Joi.object({
 
 
 const zoneIdQuerySchema = Joi.object({
-  page : join.number()
+  page : joi.number()
     .integer()
     .positive()
     .min(1)
@@ -38,7 +38,7 @@ const zoneIdQuerySchema = Joi.object({
       'number.positive': 'La page doit être un nombre positif',
       'number.min': 'La page doit être au moins 1'
     }),
-  limit : join.number()
+  limit : joi.number()
     .integer()
     .positive()
     .min(1)
@@ -53,7 +53,7 @@ const zoneIdQuerySchema = Joi.object({
     }),
 
     // filtre optionnel par nom de zone
-  nom: join.string()
+  nom: joi.string()
     .min(3)
     .max(60)
     .optional()
@@ -63,7 +63,7 @@ const zoneIdQuerySchema = Joi.object({
       'string.max': 'Le nom ne peut pas dépasser 60 caractères'
     }),
 
-  tarif_base : join.number()
+  tarif_base : joi.number()
     .positive()
     .precision(2)
     .optional()
@@ -72,7 +72,7 @@ const zoneIdQuerySchema = Joi.object({
       'number.positive': 'Le tarif de base doit être un nombre positif',
       'number.precision': 'Le tarif de base doit avoir au maximum 2 décimales'
     }),
-    tarif_km : join.number()
+    tarif_km : joi.number()
     .positive()
     .precision(2)
     .optional()
@@ -81,7 +81,7 @@ const zoneIdQuerySchema = Joi.object({
       'number.positive': 'Le tarif par km doit être un nombre positif',
       'number.precision': 'Le tarif par km doit avoir au maximum 2 décimales'
     }),
-    tarif_minute : join.number()
+    tarif_minute : joi.number()
     .positive()
     .precision(2)
     .optional()

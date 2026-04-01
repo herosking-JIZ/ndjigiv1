@@ -67,7 +67,7 @@ const vehiculeQuerySchema = joi.object({
         .messages({
             'any.only': 'Le statut doit être : disponible, en_location ou en_maintenance'
         }),
-
+    
     categorie: joi.string()
         .lowercase()
         .trim()
@@ -78,8 +78,7 @@ const vehiculeQuerySchema = joi.object({
         }),
 
     // Filtre par propriétaire (utile pour lister ses propres véhicules)
-    id_proprietaire: joi.string()
-        .uuid({ version: ['uuidv4'] })
+    id_proprietaire: uuidSchema
         .optional()
         .messages({
             'string.uuid': 'L\'ID du propriétaire doit être un UUID v4 valide',
@@ -145,16 +144,12 @@ const photoSchema = joi.object({
 const createVehiculeSchema = joi.object({
 
     // FK vers la table proprietaire
-    id_proprietaire: joi.string()
-        .uuid({ version: ['uuidv4'] })
-        .required()
+    id_proprietaire: uuidSchema
         .messages({
             'any.required': 'L\'ID du propriétaire est obligatoire',
-            'string.base':  'L\'ID du propriétaire doit être une chaîne',
             'string.uuid':  'L\'ID du propriétaire doit être un UUID v4 valide',
             'string.guid':  'L\'ID du propriétaire doit être un UUID v4 valide'
         }),
-
     // Unique en base → VarChar(20)
     immatriculation: joi.string()
         .trim()
