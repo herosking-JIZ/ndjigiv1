@@ -33,12 +33,16 @@ const authenticate = async (req, res, next) => {
       }
     });
 
-    if (!user || user.statut_compte !== 'actif') {
+// Ton modèle a bloque_jusqu_au DateTime?
+// Un utilisateur bloqué temporairement peut quand même accéder aux routes
+
+    if (user.bloque_jusqu_au && user.bloque_jusqu_au > new Date()) {
       return res.status(401).json({
         success: false,
-        message: 'Utilisateur introuvable ou inactif.'
-      });
-    }
+        message: 'Compte temporairement bloqué.',
+        bloque_jusqu_au: user.bloque_jusqu_au
+    });
+}
 
     // 4. Attacher l'utilisateur à la requête
     const { mot_de_passe_hash, reset_token, reset_token_expire, ...userSafe } = user;

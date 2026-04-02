@@ -13,3 +13,4 @@ proprietaireRoute.get ('/:id/statistiques',  can('proprietaire:lire'),     Propr
 proprietaireRoute.patch('/:id/valider',      authorize('admin'),           ProprietaireController.valider);
 
 module.exports = proprietaireRoute;
+   

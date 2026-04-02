@@ -41,12 +41,6 @@ const documentQuerySchema = Joi.object({
 // Ce validator couvre le body après traitement du fichier
 const createDocumentSchema = Joi.object({
 
-    // FK — peut venir du token JWT côté controller
-    id_utilisateur: uuidSchema.messages({
-        'any.required': 'L\'ID de l\'utilisateur est obligatoire',
-        'string.uuid':  'L\'ID de l\'utilisateur doit être un UUID v4 valide'
-    }),
-
     // VarChar(40) obligatoire
     type: Joi.string().trim()
         .valid('permis', 'carte_identite', 'assurance', 'carte_grise', 'autre')

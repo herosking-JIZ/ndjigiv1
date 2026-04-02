@@ -9,6 +9,7 @@ const {
   resetPasswordRules
 } = require('../validators/authValidator');
 
+
 const authRoute = express.Router();
 
 // ---- Rate limiting : protection contre le brute-force ----

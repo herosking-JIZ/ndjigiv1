@@ -13,7 +13,9 @@ const promoRoute            = require('./promoRoute');
 const proprietaireRoute     = require('./proprietaireRoute');
 const reservationRoute      = require('./reservationRoute');
 const utilisateurRoute      = require('./utilisateurRoute');
+const zoneTarifaireRoute      = require('./zoneTarifaireRoute');
 
+console.log('Chargement des routes...');
 
 const router = express.Router();
 
@@ -33,7 +35,7 @@ router.use('/proprietaire', proprietaireRoute);
 router.use('/reservation', reservationRoute);
 router.use('/utilisateur', utilisateurRoute);
 router.use('/vehicule', vehiculeRoute);
-
+router.use('/zone-tarifaire', zoneTarifaireRoute);
 
 
 

@@ -1,5 +1,5 @@
 // src/middlewares/validate.middleware.js
-const validate = (schemas) => {
+const joiValidate = (schemas) => {
   return (req, res, next) => {
     const validationOptions = {
       abortEarly: false,
@@ -60,4 +60,4 @@ const validate = (schemas) => {
   };
 };
 
-module.exports = validate;
+module.exports =  joiValidate ;
