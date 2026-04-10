@@ -5,6 +5,11 @@ const vehiculeController  = require('../controllers/vehiculeController');
 const { authenticate } = require('../middlewares/authenticate');
 const { can, authorize } = require('../middlewares/authorize');
 
+const vehiculeValidator = require('../validators/vehiculeValidator');
+const joiValidate = require('../middlewares/validate.middleware');
+const checkOwnership = require('../middlewares/checkOwnership');
+const checkOwnershipTracking = require('../middlewares/checkOwnershipTracking');
+
 const vehiculeRoute = express.Router();
 // Toutes les routes véhicules nécessitent d'être connecté
 vehiculeRoute.use(authenticate);
@@ -15,14 +20,49 @@ vehiculeRoute.use(authenticate);
 
 vehiculeRoute.get('/', can('vehicule:lire'), vehiculeController.lister);
 
+// const checkOwnership = (model, paramId, champFK, champPK) => {
 
-vehiculeRoute.post('/', can('vehicule:creer'), vehiculeController.creer);
-vehiculeRoute.get('/:id', can('vehicule:lire'), vehiculeController.findOne);
-vehiculeRoute.get('/:id/tracking', can('vehicule:lire'), vehiculeController.tracking);
-vehiculeRoute.patch ('/:id/position', can('vehicule:modifier'), vehiculeController.updatePosition);
+vehiculeRoute.post('/', 
+    can('vehicule:creer'), 
+    vehiculeController.creer
+);
+
+vehiculeRoute.get('/:id',
+    can('vehicule:lire'),
+    checkOwnership('vehicule', 'id', 'id_proprietaire', 'id_vehicule'),
+    vehiculeController.findOne)
+;
+// 
+vehiculeRoute.get(
+    '/:id/tracking',
+    can('tracking:lire'),
+    checkOwnershipTracking,
+    vehiculeController.tracking
+);
 
 
-vehiculeRoute.patch('/:id', can('vehicule:modifier'), vehiculeController.modifier);
-vehiculeRoute.delete('/:id', authorize('admin'), vehiculeController.supprimer);
+vehiculeRoute.patch (
+    '/:id/position', 
+    can('vehicule:modifier'),
+    checkOwnershipTracking, 
+    vehiculeController.updatePosition
+);
+
+
+vehiculeRoute.patch(
+    '/:id', 
+    can('vehicule:modifier'),
+    checkOwnership('vehicule', 'id', 'id_proprietaire', 'id_vehicule'), 
+    vehiculeController.modifier
+);
+
+
+vehiculeRoute.delete(
+    '/:id', 
+    authorize('delete', 'vehicule'),
+    checkOwnership('vehicule', 'id', 'id_proprietaire', 'id_vehicule'),
+    vehiculeController.supprimer
+);
+
 
 module.exports = vehiculeRoute ;

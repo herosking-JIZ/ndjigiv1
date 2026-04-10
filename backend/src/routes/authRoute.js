@@ -9,6 +9,8 @@ const {
   resetPasswordRules
 } = require('../validators/authValidator');
 
+const { authorize, can } = require('../middlewares/authorize');
+
 
 const authRoute = express.Router();
 
@@ -61,6 +63,8 @@ authRoute.get('/me',authenticate, AuthController.me);
 
 authRoute.post('/forgot-password', forgotPasswordLimiter, forgotPasswordRules, AuthController.forgotPassword);   // demande de reset
 authRoute.post('/reset-password', resetPasswordRules, AuthController.resetPassword);    // nouveau mot de passe
+
+authRoute.post('/admin/users', AuthController.createUserByAdmin);
 
 
 

@@ -1,21 +1,17 @@
 // controllers/zoneTarifaireController.js
-const prisma = require('../config/db');
+const { prisma } = require('../config/db'); // Destructuration si ton db.js exporte { prisma }
 
 const zoneTarifaireController = {
 
     // ─────────────────────────────────────────
     // GET /zones-tarifaires
-    // Lister avec pagination + filtre actif
     // ─────────────────────────────────────────
     async lister(req, res) {
         try {
-            // Les valeurs sont déjà validées et typées par Joi (page/limit ont des defaults)
             const { actif, page, limit } = req.query;
             const skip  = (page - 1) * limit;
             const where = {};
 
-            // Filtre optionnel : actif=true ou actif=false
-            // Joi a déjà converti la string en boolean via .boolean()
             if (actif !== undefined) where.actif = actif;
 
             const [zones, total] = await Promise.all([
@@ -28,29 +24,32 @@ const zoneTarifaireController = {
                 prisma.zone_tarifaire.count({ where })
             ]);
 
-            return res.status(200).json({        // ✅ status (pas tatus)
-                success : true,                  // ✅ success (pas succes)
-                data    : zones,                 // ✅ data (pas date)
+            return res.status(200).json({
+                success : true,
+                message : 'Zones tarifaires récupérées avec succès.',
+                data    : zones,
                 meta    : {
                     total,
                     page,
                     limit,
                     totalPages : Math.ceil(total / limit)
-                }
+                },
+                errors: null
             });
 
         } catch (error) {
             console.error('[Zone.lister]', error);
             return res.status(500).json({
                 success : false,
-                message : 'Erreur serveur lors de la récupération des zones.'
+                message : 'Erreur serveur lors de la récupération des zones.',
+                data    : null,
+                errors  : error.message
             });
         }
     },
 
     // ─────────────────────────────────────────
     // GET /zones-tarifaires/:id
-    // Récupérer une zone par son ID
     // ─────────────────────────────────────────
     async findOne(req, res) {
         try {
@@ -61,31 +60,35 @@ const zoneTarifaireController = {
             if (!zone) {
                 return res.status(404).json({
                     success : false,
-                    message : 'Zone tarifaire introuvable.'
+                    message : 'Zone tarifaire introuvable.',
+                    data    : null,
+                    errors  : { code: 'ZONE_NOT_FOUND' }
                 });
             }
 
             return res.status(200).json({
                 success : true,
-                data    : zone
+                message : 'Zone tarifaire trouvée.',
+                data    : zone,
+                errors  : null
             });
 
         } catch (error) {
             console.error('[Zone.findOne]', error);
             return res.status(500).json({
                 success : false,
-                message : 'Erreur serveur lors de la récupération de la zone.'
+                message : 'Erreur serveur.',
+                data    : null,
+                errors  : error.message
             });
         }
     },
 
     // ─────────────────────────────────────────
     // POST /zones-tarifaires
-    // Créer une zone tarifaire
     // ─────────────────────────────────────────
     async create(req, res) {
         try {
-            // req.body est déjà validé et nettoyé par le middleware Joi
             const zone = await prisma.zone_tarifaire.create({
                 data: req.body
             });
@@ -93,81 +96,80 @@ const zoneTarifaireController = {
             return res.status(201).json({
                 success : true,
                 message : 'Zone tarifaire créée avec succès.',
-                data    : zone
+                data    : zone,
+                errors  : null
             });
 
         } catch (error) {
             console.error('[Zone.create]', error);
 
-            // Contrainte d'unicité en base (si nom unique)
             if (error.code === 'P2002') {
                 return res.status(409).json({
                     success : false,
-                    message : 'Une zone tarifaire avec ce nom existe déjà.'
+                    message : 'Une zone tarifaire avec ce nom existe déjà.',
+                    data    : null,
+                    errors  : { field: 'nom', code: 'DUPLICATE_VALUE' }
                 });
             }
 
             return res.status(500).json({
                 success : false,
-                message : 'Erreur serveur lors de la création de la zone.'
+                message : 'Erreur serveur lors de la création.',
+                data    : null,
+                errors  : error.message
             });
         }
     },
 
     // ─────────────────────────────────────────
     // PUT /zones-tarifaires/:id
-    // Modifier une zone tarifaire
     // ─────────────────────────────────────────
-    async modifier(req, res) {                   // ✅ (req, res) ajoutés
+    async modifier(req, res) {
         try {
-            // Vérifier que la zone existe avant de mettre à jour
-            const existe = await prisma.zone_tarifaire.findUnique({
-                where: { id_zone: req.params.id }
-            });
-
-            if (!existe) {
-                return res.status(404).json({
-                    success : false,
-                    message : 'Zone tarifaire introuvable.'
-                });
-            }
-
+            // Note: .update() échoue de lui-même si l'ID n'existe pas (P2025)
+            // On peut donc se passer du .findUnique préalable pour gagner une requête,
+            // sauf si on a une logique métier complexe avant l'update.
             const zone = await prisma.zone_tarifaire.update({
                 where : { id_zone: req.params.id },
-                data  : req.body   // déjà validé par updateZoneSchema
+                data  : req.body
             });
 
             return res.status(200).json({
                 success : true,
                 message : 'Zone tarifaire mise à jour avec succès.',
-                data    : zone
+                data    : zone,
+                errors  : null
             });
 
         } catch (error) {
             console.error('[Zone.modifier]', error);
 
-            // Enregistrement inexistant au moment du update (race condition)
             if (error.code === 'P2025') {
                 return res.status(404).json({
                     success : false,
-                    message : 'Zone tarifaire introuvable.'
+                    message : 'Zone tarifaire introuvable.',
+                    data    : null,
+                    errors  : { code: 'ZONE_NOT_FOUND' }
                 });
             }
 
             return res.status(500).json({
                 success : false,
-                message : 'Erreur serveur lors de la mise à jour de la zone.'
+                message : 'Erreur serveur lors de la modification.',
+                data    : null,
+                errors  : error.message
             });
         }
     },
 
     // ─────────────────────────────────────────
     // DELETE /zones-tarifaires/:id
-    // Supprimer une zone tarifaire
     // ─────────────────────────────────────────
     async delete(req, res) {
         try {
-            // Vérifier que la zone n'est pas liée à des trajets actifs
+            // Vérification des trajets liés (Bonne pratique !)
+            // On peut aussi gérer cela via un "Soft Delete" (actif: false)
+            // pour garder l'historique des prix des anciens trajets.
             const trajetsLies = await prisma.trajet.count({
                 where: {
                     id_zone : req.params.id,
@@ -178,7 +180,9 @@ const zoneTarifaireController = {
             if (trajetsLies > 0) {
                 return res.status(409).json({
                     success : false,
-                    message : `Impossible de supprimer : ${trajetsLies} trajet(s) actif(s) utilisent cette zone.`
+                    message : `Suppression impossible : ${trajetsLies} trajet(s) actif(s) en cours.`,
+                    data    : null,
+                    errors  : { code: 'DEPENDENCY_CONFLICT', count: trajetsLies }
                 });
             }
 
@@ -188,7 +192,9 @@ const zoneTarifaireController = {
 
             return res.status(200).json({
                 success : true,
-                message : 'Zone tarifaire supprimée avec succès.'
+                message : 'Zone tarifaire supprimée avec succès.',
+                data    : null,
+                errors  : null
             });
 
         } catch (error) {
@@ -197,21 +203,26 @@ const zoneTarifaireController = {
             if (error.code === 'P2025') {
                 return res.status(404).json({
                     success : false,
-                    message : 'Zone tarifaire introuvable.'
+                    message : 'Zone tarifaire introuvable.',
+                    data    : null,
+                    errors  : { code: 'ZONE_NOT_FOUND' }
                 });
             }
 
-            // Contrainte de FK — des trajets référencent encore cette zone
             if (error.code === 'P2003') {
                 return res.status(409).json({
                     success : false,
-                    message : 'Impossible de supprimer : des trajets sont liés à cette zone.'
+                    message : 'Impossible de supprimer : des données historiques y sont liées.',
+                    data    : null,
+                    errors  : { code: 'FK_CONSTRAINT' }
                 });
             }
 
             return res.status(500).json({
                 success : false,
-                message : 'Erreur serveur lors de la suppression de la zone.'
+                message : 'Erreur serveur.',
+                data    : null,
+                errors  : error.message
             });
         }
     }

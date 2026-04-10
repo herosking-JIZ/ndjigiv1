@@ -14,11 +14,12 @@ const validate = (req, res, next) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({
       success: false,
-      message: 'Données invalides.',
+      message: 'Données invalides 😒.',
       errors:  errors.array().map(e => ({
         champ:   e.path,
         message: e.msg
-      }))
+      })),
+
     });
   }
   next();
@@ -50,7 +51,7 @@ const registerRules = [
     .notEmpty().withMessage('Le numéro de téléphone est requis.')
     .matches(/^\+?[\d\s\-]{8,20}$/).withMessage('Numéro de téléphone invalide (8 à 20 chiffres).'),
 
-  body('password')
+  body('mot_de_passe')
     .notEmpty().withMessage('Le mot de passe est requis.')
     .isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères.')
     .matches(/[A-Z]/).withMessage('Le mot de passe doit contenir au moins une majuscule.')
@@ -76,7 +77,7 @@ const loginRules = [
     .isEmail().withMessage('Format email invalide.')
     .normalizeEmail(),
 
-  body('password')
+  body('mot_de_passe')
     .notEmpty().withMessage('Le mot de passe est requis.'),
 
   validate

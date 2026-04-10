@@ -33,7 +33,12 @@ async function getUtilisateurOuErreur(id, res) {
     where: { id_utilisateur: id }
   });
   if (!utilisateur || utilisateur.supprime_le) {
-    res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+    res.status(404).json({ 
+      success: false, 
+      message: 'Utilisateur introuvable.', 
+      data: null, 
+      errors: { code: 'USER_NOT_FOUND', id } 
+    });
     return null;
   }
   return utilisateur;
@@ -51,13 +56,20 @@ const UtilisateurController = {
   // ──────────────────────────────────────────────────────────
   async findAll(req, res) {
     try {
-      const { page = 1, limit = 20, statut, role } = req.query;
+      const { page = 1, limit = 20, statut, role, search } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
       const where = { supprime_le: null };
       if (statut) where.statut_compte     = statut;
       if (role)   where.utilisateur_role  = { some: { role, actif: true } };
-
+      if (search) {
+        where.OR = [
+          { nom:              { contains: search, mode: 'insensitive' } },
+          { prenom:           { contains: search, mode: 'insensitive' } },
+          { email:            { contains: search, mode: 'insensitive' } },
+          { numero_telephone: { contains: search, mode: 'insensitive' } },
+        ];
+      }
       const [utilisateurs, total] = await Promise.all([
         prisma.utilisateur.findMany({
           where,
@@ -67,22 +79,30 @@ const UtilisateurController = {
           select: {
             ...SELECT_PUBLIC,
             utilisateur_role: { where: { actif: true }, select: { role: true } },
-            chauffeur:        { select: { statut_validation: true, statut_disponibilite: true } },
-            passager:         { select: { nb_courses_effectuees: true } },
-            proprietaire:     { select: { statut_validation: true } },
+            chauffeur:         { select: { statut_validation: true, statut_disponibilite: true } },
+            passager:          { select: { nb_courses_effectuees: true } },
+            proprietaire:      { select: { statut_validation: true } },
           }
         }),
         prisma.utilisateur.count({ where })
       ]);
-
+      const dataq = utilisateurs.map(u => ({...u,roles: u.utilisateur_role.map(r => r.role),}));
       return res.status(200).json({
         success: true,
-        data:    utilisateurs,
-        meta:    { total, page: parseInt(page), limit: parseInt(limit) }
-      });
+        message: 'Liste des utilisateurs récupérée.',
+        data : dataq,
+        meta:    { total, page: parseInt(page), limit: parseInt(limit) },
+        errors:  null
+      }
+     );
     } catch (error) {
       console.error('[utilisateur.findAll]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 
@@ -109,13 +129,28 @@ const UtilisateurController = {
       });
 
       if (!utilisateur || utilisateur.supprime_le) {
-        return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Utilisateur introuvable.', 
+          data: null, 
+          errors: { code: 'PROFILE_NOT_FOUND' } 
+        });
       }
 
-      return res.status(200).json({ success: true, data: utilisateur });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Profil récupéré.', 
+        data: utilisateur, 
+        errors: null 
+      });
     } catch (error) {
       console.error('[utilisateur.monProfil]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 
@@ -141,13 +176,28 @@ const UtilisateurController = {
       });
 
       if (!utilisateur || utilisateur.supprime_le) {
-        return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Utilisateur introuvable.', 
+          data: null, 
+          errors: { code: 'USER_NOT_FOUND', id } 
+        });
       }
 
-      return res.status(200).json({ success: true, data: utilisateur });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Utilisateur trouvé.', 
+        data: utilisateur, 
+        errors: null 
+      });
     } catch (error) {
       console.error('[utilisateur.findOne]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 
@@ -163,8 +213,8 @@ const UtilisateurController = {
       const utilisateur = await prisma.utilisateur.update({
         where: { id_utilisateur: userId },
         data: {
-          ...(nom              && { nom }),
-          ...(prenom           && { prenom }),
+          ...(nom             && { nom }),
+          ...(prenom          && { prenom }),
           ...(adresse          && { adresse }),
           ...(photo_profil     && { photo_profil }),
           ...(numero_telephone && { numero_telephone }),
@@ -176,13 +226,24 @@ const UtilisateurController = {
         success: true,
         message: 'Profil mis à jour avec succès.',
         data:    utilisateur,
+        errors:  null
       });
     } catch (error) {
       if (error.code === 'P2002') {
-        return res.status(409).json({ success: false, message: 'Ce numéro de téléphone est déjà utilisé.' });
+        return res.status(409).json({ 
+          success: false, 
+          message: 'Ce numéro de téléphone est déjà utilisé.', 
+          data: null, 
+          errors: { field: 'numero_telephone', code: 'DUPLICATE_PHONE' } 
+        });
       }
       console.error('[utilisateur.updateProfil]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 
@@ -201,8 +262,8 @@ const UtilisateurController = {
       const updated = await prisma.utilisateur.update({
         where: { id_utilisateur: id },
         data: {
-          ...(nom              && { nom }),
-          ...(prenom           && { prenom }),
+          ...(nom             && { nom }),
+          ...(prenom          && { prenom }),
           ...(photo_profil     && { photo_profil }),
           ...(adresse          && { adresse }),
           ...(numero_telephone && { numero_telephone }),
@@ -214,10 +275,16 @@ const UtilisateurController = {
         success: true,
         message: 'Profil mis à jour.',
         data:    updated,
+        errors:  null
       });
     } catch (error) {
       console.error('[utilisateur.update]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 
@@ -243,10 +310,20 @@ const UtilisateurController = {
         }),
       ]);
 
-      return res.status(200).json({ success: true, message: 'Compte supprimé avec succès.' });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Compte supprimé avec succès.', 
+        data: null, 
+        errors: null 
+      });
     } catch (error) {
       console.error('[utilisateur.delete]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 
@@ -261,11 +338,21 @@ const UtilisateurController = {
 
       const statutsValides = ['actif', 'suspendu', 'banni'];
       if (!statutsValides.includes(statut)) {
-        return res.status(400).json({ success: false, message: `Statut invalide. Valeurs acceptées : ${statutsValides.join(', ')}.` });
+        return res.status(400).json({ 
+          success: false, 
+          message: `Statut invalide.`, 
+          data: null, 
+          errors: { code: 'INVALID_STATUS', acceptedValues: statutsValides } 
+        });
       }
 
       if (bloque_jusqu_au && isNaN(new Date(bloque_jusqu_au).getTime())) {
-        return res.status(400).json({ success: false, message: 'Format de date invalide.' });
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Format de date invalide.', 
+          data: null, 
+          errors: { code: 'INVALID_DATE' } 
+        });
       }
 
       const utilisateur = await getUtilisateurOuErreur(id, res);
@@ -279,59 +366,22 @@ const UtilisateurController = {
         }
       });
 
-      return res.status(200).json({ success: true, message: `Compte ${statut} avec succès.` });
+      return res.status(200).json({ 
+        success: true, 
+        message: `Compte ${statut} avec succès.`, 
+        data: null, 
+        errors: null 
+      });
     } catch (error) {
       console.error('[utilisateur.changerStatut]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
-    }
-  },
-
-  // ──────────────────────────────────────────────────────────
-  // PATCH /api/utilisateurs/mot-de-passe
-  // Changer son propre mot de passe (connecté)
-  // ──────────────────────────────────────────────────────────
-  async changerMotDePasse(req, res) {
-    try {
-      const userId = req.user.id_utilisateur;
-      const { ancienPassword, newPassword } = req.body;
-
-      if (!ancienPassword || !newPassword) {
-        return res.status(400).json({ success: false, message: 'ancienPassword et newPassword requis.' });
-      }
-      if (newPassword.length < 8) {
-        return res.status(400).json({ success: false, message: 'Le nouveau mot de passe doit contenir au moins 8 caractères.' });
-      }
-
-      const utilisateur = await prisma.utilisateur.findUnique({
-        where: { id_utilisateur: userId }
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
       });
-
-      const valide = await bcrypt.compare(ancienPassword, utilisateur.mot_de_passe_hash);
-      if (!valide) {
-        return res.status(401).json({ success: false, message: 'Ancien mot de passe incorrect.' });
-      }
-
-      const mot_de_passe_hash = await bcrypt.hash(newPassword, 12);
-
-      // Changer le mdp + révoquer toutes les autres sessions
-      await prisma.$transaction([
-        prisma.utilisateur.update({
-          where: { id_utilisateur: userId },
-          data:  { mot_de_passe_hash }
-        }),
-        prisma.session.updateMany({
-          where: { id_utilisateur: userId },
-          data:  { est_valide: false }
-        }),
-      ]);
-
-      return res.status(200).json({ success: true, message: 'Mot de passe mis à jour. Reconnectez-vous.' });
-    } catch (error) {
-      console.error('[utilisateur.changerMotDePasse]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
   },
-
   // ──────────────────────────────────────────────────────────
   // POST /api/utilisateurs/:id/roles (admin)
   // Ajouter un rôle + créer la table satellite si nécessaire
@@ -343,21 +393,24 @@ const UtilisateurController = {
 
       const rolesValides = ['passager', 'chauffeur', 'proprietaire', 'gestionnaire', 'admin'];
       if (!rolesValides.includes(role)) {
-        return res.status(400).json({ success: false, message: `Rôle invalide. Valeurs acceptées : ${rolesValides.join(', ')}.` });
+        return res.status(400).json({ 
+          success: false, 
+          message: `Rôle invalide.`, 
+          data: null, 
+          errors: { code: 'INVALID_ROLE', acceptedValues: rolesValides } 
+        });
       }
 
       const utilisateur = await getUtilisateurOuErreur(id, res);
       if (!utilisateur) return;
 
       await prisma.$transaction(async (tx) => {
-        // Upsert du rôle
         await tx.utilisateur_role.upsert({
           where:  { id_utilisateur_role: { id_utilisateur: id, role } },
           update: { actif: true, date_activation: new Date(), date_desactivation: null },
           create: { id_utilisateur: id, role, actif: true }
         });
 
-        // Créer la table satellite si elle n'existe pas encore
         if (role === 'passager') {
           await tx.passager.upsert({
             where:  { id_passager: id },
@@ -379,7 +432,6 @@ const UtilisateurController = {
             create: { id_proprietaire: id }
           });
         }
-        // Créer le portefeuille si pas encore créé
         await tx.portefeuille.upsert({
           where:  { id_utilisateur: id },
           update: {},
@@ -387,10 +439,20 @@ const UtilisateurController = {
         });
       });
 
-      return res.status(200).json({ success: true, message: `Rôle "${role}" ajouté avec succès.` });
+      return res.status(200).json({ 
+        success: true, 
+        message: `Rôle "${role}" ajouté avec succès.`, 
+        data: null, 
+        errors: null 
+      });
     } catch (error) {
       console.error('[utilisateur.ajouterRole]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 
@@ -407,13 +469,28 @@ const UtilisateurController = {
         data:  { actif: false, date_desactivation: new Date() }
       });
 
-      return res.status(200).json({ success: true, message: `Rôle "${role}" retiré avec succès.` });
+      return res.status(200).json({ 
+        success: true, 
+        message: `Rôle "${role}" retiré avec succès.`, 
+        data: null, 
+        errors: null 
+      });
     } catch (error) {
       if (error.code === 'P2025') {
-        return res.status(404).json({ success: false, message: 'Rôle introuvable pour cet utilisateur.' });
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Rôle introuvable pour cet utilisateur.', 
+          data: null, 
+          errors: { code: 'ROLE_NOT_FOUND', id, role } 
+        });
       }
       console.error('[utilisateur.retirerRole]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 
@@ -427,10 +504,20 @@ const UtilisateurController = {
       const { type, url_fichier, date_expiration } = req.body;
 
       if (!type || !url_fichier) {
-        return res.status(400).json({ success: false, message: 'type et url_fichier sont obligatoires.' });
+        return res.status(400).json({ 
+          success: false, 
+          message: 'type et url_fichier sont obligatoires.', 
+          data: null, 
+          errors: { code: 'MISSING_FIELDS' } 
+        });
       }
       if (date_expiration && isNaN(new Date(date_expiration).getTime())) {
-        return res.status(400).json({ success: false, message: 'Format de date_expiration invalide.' });
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Format de date_expiration invalide.', 
+          data: null, 
+          errors: { code: 'INVALID_DATE' } 
+        });
       }
 
       const document = await prisma.document.create({
@@ -447,10 +534,16 @@ const UtilisateurController = {
         success: true,
         message: 'Document téléversé avec succès.',
         data:    document,
+        errors:  null
       });
     } catch (error) {
       console.error('[utilisateur.uploadDocument]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 
@@ -467,10 +560,20 @@ const UtilisateurController = {
         orderBy: { date_soumission: 'desc' },
       });
 
-      return res.status(200).json({ success: true, data: documents });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Documents récupérés.', 
+        data: documents, 
+        errors: null 
+      });
     } catch (error) {
       console.error('[utilisateur.mesDocuments]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 
@@ -485,7 +588,12 @@ const UtilisateurController = {
 
       const statutsValides = ['valide', 'rejete', 'en_attente'];
       if (!statutsValides.includes(statut_verification)) {
-        return res.status(400).json({ success: false, message: 'Statut invalide.' });
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Statut invalide.', 
+          data: null, 
+          errors: { code: 'INVALID_STATUS', acceptedValues: statutsValides } 
+        });
       }
 
       const document = await prisma.document.update({
@@ -493,17 +601,30 @@ const UtilisateurController = {
         data:  { statut_verification }
       });
 
-      return res.status(200).json({ success: true, data: document });
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Statut du document mis à jour.', 
+        data: document, 
+        errors: null 
+      });
     } catch (error) {
       if (error.code === 'P2025') {
-        return res.status(404).json({ success: false, message: 'Document introuvable.' });
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Document introuvable.', 
+          data: null, 
+          errors: { code: 'DOCUMENT_NOT_FOUND', id } 
+        });
       }
       console.error('[utilisateur.verifierDocument]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erreur serveur.', 
+        data: null, 
+        errors: error.message 
+      });
     }
   },
 };
 
 module.exports = UtilisateurController;
-
-

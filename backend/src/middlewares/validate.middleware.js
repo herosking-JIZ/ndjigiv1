@@ -1,4 +1,5 @@
 // src/middlewares/validate.middleware.js
+
 const joiValidate = (schemas) => {
   return (req, res, next) => {
     const validationOptions = {

@@ -1,4 +1,8 @@
 // middlewares/checkTrajetOwnership.js
+
+const prisma = require('../config/db');
+
+// Middleware pour vérifier que le chauffeur connecté est bien celui affecté au trajet
 const checkTrajetChauffeur = async (req, res, next) => {
     const trajet = await prisma.trajet.findUnique({
         where: { id_trajet: req.params.id },

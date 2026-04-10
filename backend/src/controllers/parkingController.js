@@ -10,13 +10,59 @@ const { prisma } = require('../config/db');
 
 const ParkingController = {
 
+  // ── Lister tous les mouvements (historique global ou filtrable) ───
+  async mouvements(req, res) {
+    try {
+      const { search } = req.query;
+
+      const where = {};
+      if (search && search.trim() !== '') {
+        where.OR = [
+          { vehicule: { immatriculation: { contains: search, mode: 'insensitive' } } },
+          { parking: { nom: { contains: search, mode: 'insensitive' } } },
+          { utilisateur: { nom: { contains: search, mode: 'insensitive' } } },
+          { utilisateur: { prenom: { contains: search, mode: 'insensitive' } } },
+        ];
+      }
+
+      const logs = await prisma.journal_parking.findMany({
+        where,
+        orderBy: { date_mouvement: 'desc' },
+        take: 100, // Limite pour éviter de tout charger
+        include: {
+          vehicule: { select: { immatriculation: true } },
+          parking: { select: { nom: true } },
+          utilisateur: { select: { nom: true, prenom: true } }
+        }
+      });
+
+      const data = logs.map(log => ({
+        id_log: log.id_log,
+        id_vehicule: log.id_vehicule,
+        immatriculation: log.vehicule?.immatriculation || '—',
+        id_parking: log.id_parking,
+        parking_nom: log.parking?.nom || '—',
+        parkeur_nom: log.utilisateur ? `${log.utilisateur.prenom} ${log.utilisateur.nom}` : '—',
+        type_mouvement: log.type_mouvement,
+        etat_vehicule: log.etat_vehicule,
+        date_mouvement: log.date_mouvement,
+        commentaire: log.besoin_maintenance ? "Nécessite maintenance" : null,
+      }));
+
+      return res.status(200).json({ success: true, message: 'Mouvements récupérés.', data });
+    } catch (error) {
+      console.error('[parking.mouvements]', error);
+      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+  },
+
   // ── Lister les parkings ─────────────────────────────────────
   async lister(req, res) {
     try {
       const { page = 1, limit = 20 } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const [parkings, total] = await Promise.all([
+      const [parkingsDb, total] = await Promise.all([
         prisma.parking.findMany({
           skip,
           take: parseInt(limit),
@@ -30,6 +76,14 @@ const ParkingController = {
         }),
         prisma.parking.count()
       ]);
+
+      // Mapping pour respecter l'interface Frontend Parking (ville, horaires, actif n'existent pas en base)
+      const parkings = parkingsDb.map(p => ({
+        ...p,
+        ville: 'Ouagadougou', // Valeur par défaut
+        horaires: '24h/24 - 7j/7', // Valeur par défaut
+        actif: true // On force à actif en attendant l'ajout en base
+      }));
 
       return res.status(200).json({
         success: true,
@@ -47,7 +101,7 @@ const ParkingController = {
     try {
       const { id } = req.params;
 
-      const parking = await prisma.parking.findUnique({
+      const parkingDb = await prisma.parking.findUnique({
         where: { id_parking: id },
         include: {
           gestionnaire_parking: {
@@ -65,9 +119,17 @@ const ParkingController = {
         }
       });
 
-      if (!parking) {
+      if (!parkingDb) {
         return res.status(404).json({ success: false, message: 'Parking introuvable.' });
       }
+
+      // Mapping Frontend
+      const parking = {
+        ...parkingDb,
+        ville: 'Ouagadougou',
+        horaires: '24h/24 - 7j/7',
+        actif: true
+      };
 
       return res.status(200).json({ success: true, data: parking });
     } catch (error) {

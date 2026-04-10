@@ -1,24 +1,16 @@
 const express = require('express');
-const documentController  = require('../controllers/documentController');
+const documentController = require('../controllers/documentController');
 const { authenticate } = require('../middlewares/authenticate');
 const { can, authorize } = require('../middlewares/authorize');
 
-const documentRoute = express.Router();
-// Toutes les routes documents nécessitent d'être connecté
-documentRoute.use(authenticate);    
+const router = express.Router();
 
-// Définition des routes pour les documents
+router.use(authenticate);
 
-// GET /utilisateur/documents — voir ses documents
+router.get('/', authorize('admin'), documentController.list)
+router.patch('/:id/valider', authorize('admin'), documentController.valider)
+router.patch('/:id/rejeter', authorize('admin'), documentController.rejeter)
+router.post('/', can('profil:modifier'), documentController.uploadDocument)
+router.get('/me', can('profil:lire'), documentController.mesDocuments)
 
-documentRoute.get   ('/documents',                 can('profil:lire'),       documentController.mesDocuments);
-
-// POST /utilisateur/documents — ajouter un document
-
-
-documentRoute.post  ('/documents',                 can('profil:modifier'),   documentController.uploadDocument);
-
-// PATCH /utilisateur/documents/:id/verifier — vérifier un document (admin seulement)
-
-
-documentRoute.patch ('/documents/:id/verifier',    authorize('admin'),       documentController.verifierDocument);
+module.exports = router;

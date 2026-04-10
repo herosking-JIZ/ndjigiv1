@@ -7,6 +7,7 @@ const { authenticate }        = require('../middlewares/authenticate');
 const { authorize, can }      = require('../middlewares/authorize');
 
 
+
 const utilisateurRoute = express.Router();
 utilisateurRoute.use(authenticate);
 
@@ -22,7 +23,6 @@ utilisateurRoute.patch ('/profil',                    can('profil:modifier'),   
 // PATCH /utilisateur/mot-de-passe — changer son mot de passe
 
 
-utilisateurRoute.patch ('/mot-de-passe',              can('profil:modifier'),   UtilisateurController.changerMotDePasse);
 
 // ── Documents ────────────────────────────────────────────────
 
@@ -58,5 +58,6 @@ utilisateurRoute.post  ('/:id/roles',                 authorize('admin'),       
 // DELETE /utilisateurs/:id/roles/:role — retirer un rôle d'un utilisateur (admin seulement)
 
 utilisateurRoute.delete('/:id/roles/:role',           authorize('admin'),        UtilisateurController.retirerRole);
+
 
 module.exports = utilisateurRoute;
